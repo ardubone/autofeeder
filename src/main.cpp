@@ -13,17 +13,20 @@ Mosfet mosfet(4); // Пин 4 для MOSFET
 Scheduler scheduler;
 
 // Тестовый режим
-const bool TEST_MODE = true;
+const bool TEST_MODE = false;
 const unsigned long MOSFET_DELAY = 1000; // Задержка после включения MOSFET в мс
-const unsigned long LIMIT_IGNORE_TIME = 1500; // Время игнорирования концевика в мс
+const unsigned long MOSFET_OFF_DELAY = 200; // Задержка после выключения MOSFET в мс
+const unsigned long LIMIT_IGNORE_TIME = 5000; // Время игнорирования концевика в мс
+const unsigned long SCHEDULE_CHECK_INTERVAL = 45000; // Интервал проверки расписания в мс
 
 // Таймеры
 unsigned long _limitIgnoreStartTime = 0;
 bool _isLimitIgnored = false;
+unsigned long _lastScheduleCheck = 0;
 
 void setup() {
     Serial.begin(9600);
-    Serial.println("[MAIN] Инициализация системы");
+    Serial.println(F("[MAIN] Init"));
     
     clock.init();
     button.init();
@@ -31,76 +34,129 @@ void setup() {
     mosfet.init();
     scheduler.init(&clock, &mosfet);
     
-    // Добавляем тестовое расписание
-    scheduler.addSchedule(12, 0, 1, 2); // Понедельник, 12:00, 2 повторение
-    scheduler.addSchedule(12, 01, 1, 1); 
-    scheduler.addSchedule(12, 02, 1, 3); 
+    // Добавляем расписание
+    // Понедельник
+    scheduler.addSchedule(9, 0, 1, 1);
+    scheduler.addSchedule(19, 0, 1, 1);
     
-    // Устанавливаем тестовое время
-    DateTime testTime(2024, 1, 1, 12, 0, 0); // Понедельник, 12:00
-    clock.setTime(testTime);
+    // Вторник
+    scheduler.addSchedule(9, 0, 2, 1);
+    scheduler.addSchedule(19, 0, 2, 1);
+    
+    // Среда
+    scheduler.addSchedule(9, 0, 3, 1);
+    scheduler.addSchedule(19, 0, 3, 1);
+    
+    // Четверг
+    scheduler.addSchedule(9, 0, 4, 1);
+    scheduler.addSchedule(19, 0, 4, 1);
+    
+    // Пятница
+    scheduler.addSchedule(9, 0, 5, 1);
+    scheduler.addSchedule(19, 0, 5, 1);
+    
+    // Воскресенье
+    scheduler.addSchedule(9, 0, 7, 1);
+    scheduler.addSchedule(19, 0, 7, 1);
+    
+    // Установка времени закомментирована, так как время уже установлено вручную
+    // DateTime currentTime(2024, 1, 1, 12, 0, 0);
+    // clock.setTime(currentTime);
+    
+    // Выводим текущее время
+    DateTime currentTime = clock.getTime();
+    Serial.print(F("[MAIN] Current time: "));
+    Serial.print(currentTime.year());
+    Serial.print(F("-"));
+    Serial.print(currentTime.month());
+    Serial.print(F("-"));
+    Serial.print(currentTime.day());
+    Serial.print(F(" "));
+    Serial.print(currentTime.hour());
+    Serial.print(F(":"));
+    Serial.print(currentTime.minute());
+    Serial.print(F(":"));
+    Serial.println(currentTime.second());
 }
 
 void loop() {
+    unsigned long currentTime = millis();
+    
     // Проверка таймера игнорирования концевика
-    if (_isLimitIgnored && (millis() - _limitIgnoreStartTime) > LIMIT_IGNORE_TIME) {
+    if (_isLimitIgnored && (currentTime - _limitIgnoreStartTime) > LIMIT_IGNORE_TIME) {
         _isLimitIgnored = false;
-        Serial.println("[MAIN] Завершено игнорирование концевика");
+        Serial.println(F("[MAIN] End ignore"));
     }
 
     if (TEST_MODE) {
         // Тест кнопки и MOSFET
         if (button.isPressed() && !mosfet.isOn()) {
-            Serial.println("[MAIN] Нажата кнопка, включаем MOSFET");
+            Serial.println(F("[MAIN] Button press"));
             mosfet.turnOn();
-            delay(MOSFET_DELAY); // Задержка после включения
+            delay(MOSFET_DELAY);
             limitSwitch.reset();
-            _limitIgnoreStartTime = millis();
+            _limitIgnoreStartTime = currentTime;
             _isLimitIgnored = true;
-            Serial.println("[MAIN] Начато игнорирование концевика");
+            Serial.println(F("[MAIN] Start ignore"));
         }
 
         // Тест концевика
-        if (limitSwitch.isTriggered() && !_isLimitIgnored && mosfet.isOn()) {
-            Serial.println("[MAIN] Сработал концевик, выключаем MOSFET");
+        if (!_isLimitIgnored && mosfet.isOn() && limitSwitch.isTriggered()) {
+            Serial.println(F("[MAIN] Limit switch triggered"));
+            Serial.print(F("[MAIN] MOSFET state before: "));
+            Serial.println(mosfet.isOn());
             mosfet.turnOff();
+            Serial.print(F("[MAIN] MOSFET state after: "));
+            Serial.println(mosfet.isOn());
         }
 
-        // Тест расписания
-        if (scheduler.shouldActivate() && !mosfet.isOn()) {
-            Serial.println("[MAIN] Активация по расписанию, включаем MOSFET");
-            mosfet.turnOn();
-            delay(MOSFET_DELAY); // Задержка после включения
-            limitSwitch.reset();
-            _limitIgnoreStartTime = millis();
-            _isLimitIgnored = true;
-            Serial.println("[MAIN] Начато игнорирование концевика");
+        // Тест расписания с интервалом
+        if ((currentTime - _lastScheduleCheck) >= SCHEDULE_CHECK_INTERVAL) {
+            _lastScheduleCheck = currentTime;
+            if (scheduler.shouldActivate() && !mosfet.isOn()) {
+                Serial.println(F("[MAIN] Schedule"));
+                mosfet.turnOn();
+                delay(MOSFET_DELAY);
+                limitSwitch.reset();
+                _limitIgnoreStartTime = currentTime;
+                _isLimitIgnored = true;
+                Serial.println(F("[MAIN] Start ignore"));
+            }
         }
     } else {
         // Нормальный режим работы
         if (button.isPressed() && !mosfet.isOn()) {
-            Serial.println("[MAIN] Нажата кнопка, включаем MOSFET");
+            Serial.println(F("[MAIN] Button press"));
             mosfet.turnOn();
-            delay(MOSFET_DELAY); // Задержка после включения
+            delay(MOSFET_DELAY);
             limitSwitch.reset();
-            _limitIgnoreStartTime = millis();
+            _limitIgnoreStartTime = currentTime;
             _isLimitIgnored = true;
-            Serial.println("[MAIN] Начато игнорирование концевика");
+            Serial.println(F("[MAIN] Start ignore"));
         }
 
-        if (limitSwitch.isTriggered() && !_isLimitIgnored && mosfet.isOn()) {
-            Serial.println("[MAIN] Сработал концевик, выключаем MOSFET");
+        // Проверка концевика
+        if (!_isLimitIgnored && mosfet.isOn() && limitSwitch.isTriggered()) {
+            Serial.println(F("[MAIN] Limit switch triggered"));
+            Serial.print(F("[MAIN] MOSFET state before: "));
+            Serial.println(mosfet.isOn());
             mosfet.turnOff();
+            Serial.print(F("[MAIN] MOSFET state after: "));
+            Serial.println(mosfet.isOn());
         }
 
-        if (scheduler.shouldActivate() && !mosfet.isOn()) {
-            Serial.println("[MAIN] Активация по расписанию, включаем MOSFET");
-            mosfet.turnOn();
-            delay(MOSFET_DELAY); // Задержка после включения
-            limitSwitch.reset();
-            _limitIgnoreStartTime = millis();
-            _isLimitIgnored = true;
-            Serial.println("[MAIN] Начато игнорирование концевика");
+        // Проверка расписания с интервалом
+        if ((currentTime - _lastScheduleCheck) >= SCHEDULE_CHECK_INTERVAL) {
+            _lastScheduleCheck = currentTime;
+            if (scheduler.shouldActivate() && !mosfet.isOn()) {
+                Serial.println(F("[MAIN] Schedule"));
+                mosfet.turnOn();
+                delay(MOSFET_DELAY);
+                limitSwitch.reset();
+                _limitIgnoreStartTime = currentTime;
+                _isLimitIgnored = true;
+                Serial.println(F("[MAIN] Start ignore"));
+            }
         }
     }
     delay(100);

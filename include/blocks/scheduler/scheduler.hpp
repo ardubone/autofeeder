@@ -16,19 +16,21 @@ struct ScheduleTime {
 
 class Scheduler {
 private:
-    static const uint8_t MAX_SCHEDULES = 10; // Максимальное количество расписаний
+    static const uint8_t MAX_SCHEDULES = 20; // Максимальное количество расписаний
     Clock* _clock;
     Mosfet* _mosfet;
     ScheduleTime _schedule[MAX_SCHEDULES];
     uint8_t _scheduleCount;
     bool _wasActivated;
+    uint8_t _currentDay; // Текущий день недели
 
 public:
-    Scheduler() : _clock(nullptr), _mosfet(nullptr), _scheduleCount(0), _wasActivated(false) {}
+    Scheduler() : _clock(nullptr), _mosfet(nullptr), _scheduleCount(0), _wasActivated(false), _currentDay(0) {}
 
     void init(Clock* clk, Mosfet* mosfet) {
         _clock = clk;
         _mosfet = mosfet;
+        _currentDay = _clock->getDayOfWeek();
         Serial.println("[SCHEDULER] Инициализация планировщика");
     }
 
@@ -63,32 +65,37 @@ public:
         if (!_clock || !_mosfet) return false;
         
         DateTime now = _clock->getTime();
-        uint8_t currentDay = _clock->getDayOfWeek();
+        uint8_t dayOfWeek = _clock->getDayOfWeek();
         unsigned long currentMillis = millis();
+
+        // Проверяем смену дня
+        if (dayOfWeek != _currentDay) {
+            _currentDay = dayOfWeek;
+            // Сбрасываем все расписания при смене дня
+            for (uint8_t i = 0; i < _scheduleCount; i++) {
+                _schedule[i].isCompleted = false;
+                _schedule[i].currentRepeat = 0;
+                _schedule[i].lastActivationTime = 0;
+            }
+            Serial.print("[SCHEDULER] Новый день: ");
+            Serial.println(dayOfWeek);
+        }
 
         Serial.print("[SCHEDULER] Текущее время: ");
         Serial.print(now.hour());
         Serial.print(":");
         Serial.print(now.minute());
         Serial.print(" День недели: ");
-        Serial.println(currentDay);
+        Serial.println(dayOfWeek);
 
         for (uint8_t i = 0; i < _scheduleCount; i++) {
             ScheduleTime& sched = _schedule[i];
             
-            // Сброс флага выполнения в начале нового дня
-            if (now.hour() == 0 && now.minute() == 0) {
-                sched.isCompleted = false;
-                sched.currentRepeat = 0;
-                sched.lastActivationTime = 0;
-                Serial.print("[SCHEDULER] Сброс расписания ");
-                Serial.println(i + 1);
-            }
+            // Пропускаем расписания не для текущего дня
+            if (sched.dayOfWeek != dayOfWeek) continue;
 
             // Проверка времени для активации
-            bool isTimeMatch = sched.dayOfWeek == currentDay && 
-                             sched.hour == now.hour() && 
-                             sched.minute == now.minute();
+            bool isTimeMatch = sched.hour == now.hour() && sched.minute == now.minute();
 
             // Проверка интервала между повторениями
             bool canRepeat = sched.currentRepeat > 0 && 

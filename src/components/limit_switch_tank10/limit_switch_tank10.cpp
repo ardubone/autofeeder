@@ -1,16 +1,21 @@
 #include "limit_switch_tank10.hpp"
 
-LimitSwitchTank10::LimitSwitchTank10(uint8_t pin) : _pin(pin), _isTriggered(false) {}
+LimitSwitchTank10::LimitSwitchTank10(uint8_t pin) : _pin(pin), _lastState(false) {}
 
 void LimitSwitchTank10::init() {
     pinMode(_pin, INPUT_PULLUP);
+    _lastState = digitalRead(_pin) == LOW;
 }
 
 bool LimitSwitchTank10::isTriggered() {
-    _isTriggered = digitalRead(_pin) == LOW;
-    return _isTriggered;
+    bool currentState = digitalRead(_pin) == LOW;
+    if (currentState != _lastState) {
+        _lastState = currentState;
+        return currentState;
+    }
+    return false;
 }
 
 void LimitSwitchTank10::reset() {
-    _isTriggered = false;
+    _lastState = digitalRead(_pin) == LOW;
 } 

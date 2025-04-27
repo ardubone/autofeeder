@@ -18,5 +18,5 @@ void MosfetTank10::turnOff() {
 }
 
 bool MosfetTank10::isOn() const {
-    return _isOn;
+    return digitalRead(_pin) == HIGH;
 } 

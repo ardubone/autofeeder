@@ -5,7 +5,7 @@
 class LimitSwitchTank10 {
 private:
     uint8_t _pin;
-    bool _isTriggered;
+    bool _lastState;
 
 public:
     LimitSwitchTank10(uint8_t pin);

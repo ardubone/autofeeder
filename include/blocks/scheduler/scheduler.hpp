@@ -2,8 +2,7 @@
 
 #include <Arduino.h>
 #include "components/clock/clock.hpp"
-#include "components/mosfet_tank20/mosfet_tank20.hpp"
-#include "components/mosfet_tank10/mosfet_tank10.hpp"
+#include "components/mosfet/mosfet.hpp"
 
 struct Schedule {
     uint8_t hour;
@@ -15,15 +14,18 @@ struct Schedule {
 class Scheduler {
 private:
     Clock* _clock;
-    MosfetTank20* _mosfetTank20;
-    MosfetTank10* _mosfetTank10;
     static const uint8_t MAX_SCHEDULES = 32;
+    static const uint8_t MAX_TANKS = 8;
     Schedule _schedules[MAX_SCHEDULES];
     uint8_t _scheduleCount;
+    Mosfet* _mosfets[MAX_TANKS];
+    uint8_t _mosfetCount;
 
 public:
     Scheduler();
-    void init(Clock* clock, MosfetTank20* mosfetTank20, MosfetTank10* mosfetTank10);
+    void init(Clock* clock);
+    void addMosfet(Mosfet* mosfet);
     void addSchedule(uint8_t hour, uint8_t minute, uint8_t dayOfWeek, uint8_t tankId);
     bool shouldActivate(uint8_t tankId);
+    Mosfet* getMosfet(uint8_t tankId);
 }; 

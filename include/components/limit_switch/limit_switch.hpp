@@ -2,14 +2,16 @@
 
 #include <Arduino.h>
 
-class LimitSwitchTank20 {
+class LimitSwitch {
 private:
     uint8_t _pin;
+    uint8_t _tankId;
     bool _lastState;
 
 public:
-    LimitSwitchTank20(uint8_t pin);
+    LimitSwitch(uint8_t pin, uint8_t tankId);
     void init();
     void reset();
     bool isTriggered();
+    uint8_t getTankId() const;
 }; 

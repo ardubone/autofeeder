@@ -1,6 +1,10 @@
 #include "blocks/scheduler/scheduler.hpp"
 
-Scheduler::Scheduler() : _clock(nullptr), _mosfetTank20(nullptr), _mosfetTank10(nullptr), _scheduleCount(0) {}
+Scheduler::Scheduler() : _clock(nullptr), _scheduleCount(0), _mosfetCount(0) {
+    for (uint8_t i = 0; i < MAX_TANKS; i++) {
+        _mosfets[i] = nullptr;
+    }
+}
 
 const char* getDayName(uint8_t day) {
     switch(day) {
@@ -15,10 +19,8 @@ const char* getDayName(uint8_t day) {
     }
 }
 
-void Scheduler::init(Clock* clock, MosfetTank20* mosfetTank20, MosfetTank10* mosfetTank10) {
+void Scheduler::init(Clock* clock) {
     _clock = clock;
-    _mosfetTank20 = mosfetTank20;
-    _mosfetTank10 = mosfetTank10;
     
     Serial.println(F("[SCHEDULER] Инициализация планировщика"));
     Serial.println(F("[SCHEDULER] Текущие расписания:"));
@@ -35,6 +37,13 @@ void Scheduler::init(Clock* clock, MosfetTank20* mosfetTank20, MosfetTank10* mos
     }
 }
 
+void Scheduler::addMosfet(Mosfet* mosfet) {
+    if (_mosfetCount < MAX_TANKS) {
+        _mosfets[_mosfetCount] = mosfet;
+        _mosfetCount++;
+    }
+}
+
 void Scheduler::addSchedule(uint8_t hour, uint8_t minute, uint8_t dayOfWeek, uint8_t tankId) {
     if (_scheduleCount < MAX_SCHEDULES) {
         _schedules[_scheduleCount] = {hour, minute, dayOfWeek, tankId};
@@ -42,8 +51,20 @@ void Scheduler::addSchedule(uint8_t hour, uint8_t minute, uint8_t dayOfWeek, uin
     }
 }
 
+Mosfet* Scheduler::getMosfet(uint8_t tankId) {
+    for (uint8_t i = 0; i < _mosfetCount; i++) {
+        if (_mosfets[i] && _mosfets[i]->getTankId() == tankId) {
+            return _mosfets[i];
+        }
+    }
+    return nullptr;
+}
+
 bool Scheduler::shouldActivate(uint8_t tankId) {
-    if (!_clock || !_mosfetTank20 || !_mosfetTank10) return false;
+    if (!_clock) return false;
+
+    Mosfet* mosfet = getMosfet(tankId);
+    if (!mosfet) return false;
 
     DateTime now = _clock->getTime();
     uint8_t currentDay = now.dayOfTheWeek();
@@ -69,9 +90,7 @@ bool Scheduler::shouldActivate(uint8_t tankId) {
             _schedules[i].hour == currentHour &&
             _schedules[i].minute == currentMinute) {
             
-            if (tankId == 1 && !_mosfetTank20->isOn()) {
-                return true;
-            } else if (tankId == 2 && !_mosfetTank10->isOn()) {
+            if (!mosfet->isOn()) {
                 return true;
             }
         }

@@ -1,14 +1,15 @@
 #include <Arduino.h>
-#include "components/button_tank10/button_tank10.hpp"
+#include "components/button/button.hpp"
 
-ButtonTank10::ButtonTank10(uint8_t pin) : _pin(pin), _lastState(HIGH), _lastDebounceTime(0) {}
+Button::Button(uint8_t pin, uint8_t tankId) : _pin(pin), _tankId(tankId), _lastState(HIGH), _lastDebounceTime(0) {}
 
-void ButtonTank10::init() {
+void Button::init() {
     pinMode(_pin, INPUT_PULLUP);
-    Serial.println(F("[BUTTON_TANK10] Init"));
+    Serial.print(F("[BUTTON] Инициализация кнопки для бака "));
+    Serial.println(_tankId);
 }
 
-bool ButtonTank10::isPressed() {
+bool Button::isPressed() {
     bool currentState = digitalRead(_pin) == LOW;
     
     if (currentState != _lastState) {
@@ -24,4 +25,8 @@ bool ButtonTank10::isPressed() {
     
     _lastState = currentState;
     return false;
+}
+
+uint8_t Button::getTankId() const {
+    return _tankId;
 } 

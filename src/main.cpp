@@ -5,6 +5,7 @@
 #include "components/mosfet/mosfet.hpp"
 #include "blocks/scheduler/scheduler.hpp"
 #include "blocks/tank_controller/tank_controller.hpp"
+#include "config/schedule_config.hpp"
 
 // Константы
 const bool TEST_MODE = false;
@@ -54,53 +55,12 @@ void setup() {
     scheduler.addMosfet(&mosfetTank20);
     scheduler.addMosfet(&mosfetTank10);
     
+    // Настройка расписания из выделенного файла конфигурации
+    setupSchedule(scheduler);
+    
     // Установка времени
     // DateTime currentTime(2025, 1, 1, 12, 0, 0);
     // clock.setTime(currentTime);
-    
-    // Добавляем расписание для tank20
-    // Понедельник
-    scheduler.addSchedule(9, 0, 1, 1);
-    scheduler.addSchedule(19, 0, 1, 1);
-    
-    // Вторник
-    scheduler.addSchedule(9, 0, 2, 1);
-    scheduler.addSchedule(19, 0, 2, 1);
-    
-    // Среда
-    scheduler.addSchedule(9, 0, 3, 1);
-    scheduler.addSchedule(19, 0, 3, 1);
-    
-    // Четверг
-    scheduler.addSchedule(9, 0, 4, 1);
-    scheduler.addSchedule(19, 0, 4, 1);
-    
-    // Пятница
-    scheduler.addSchedule(9, 0, 5, 1);
-    scheduler.addSchedule(19, 0, 5, 1);
-    
-    // Воскресенье
-    scheduler.addSchedule(9, 0, 0, 1);
-    scheduler.addSchedule(19, 0, 0, 1);
-    
-    // Добавляем расписание для tank10
-    // Понедельник
-    scheduler.addSchedule(20, 0, 1, 2);
-    
-    // Вторник
-    scheduler.addSchedule(20, 0, 2, 2);
-    
-    // Среда
-    scheduler.addSchedule(20, 0, 3, 2);
-    
-    // Четверг
-    scheduler.addSchedule(20, 0, 4, 2);
-    
-    // Пятница
-    scheduler.addSchedule(20, 0, 5, 2);
-    
-    // Воскресенье
-    scheduler.addSchedule(20, 0, 0, 2);
     
     // Выводим текущее время
     DateTime now = clock.getTime();

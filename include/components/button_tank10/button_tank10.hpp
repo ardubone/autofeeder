@@ -7,7 +7,7 @@ private:
     uint8_t _pin;
     bool _lastState;
     unsigned long _lastDebounceTime;
-    static const unsigned long DEBOUNCE_DELAY = 50;
+    const unsigned long _debounceDelay = 50;
 
 public:
     ButtonTank10(uint8_t pin);

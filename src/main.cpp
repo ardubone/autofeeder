@@ -1,8 +1,8 @@
 #include <Arduino.h>
 #include "components/clock/clock.hpp"
-#include "components/button/button.hpp"
-#include "components/limit_switch/limit_switch.hpp"
-#include "components/mosfet/mosfet.hpp"
+#include "components/button_tank20/button_tank20.hpp"
+#include "components/limit_switch_tank20/limit_switch_tank20.hpp"
+#include "components/mosfet_tank20/mosfet_tank20.hpp"
 #include "components/button_tank10/button_tank10.hpp"
 #include "components/limit_switch_tank10/limit_switch_tank10.hpp"
 #include "components/mosfet_tank10/mosfet_tank10.hpp"
@@ -10,9 +10,9 @@
 
 // Инициализация компонентов
 Clock clock;
-Button button(2); // Пин 2 для кнопки
-LimitSwitch limitSwitch(3); // Пин 3 для концевика
-Mosfet mosfet(4); // Пин 4 для MOSFET
+ButtonTank20 buttonTank20(2); // Пин 2 для кнопки tank20
+LimitSwitchTank20 limitSwitchTank20(3); // Пин 3 для концевика tank20
+MosfetTank20 mosfetTank20(4); // Пин 4 для MOSFET tank20
 ButtonTank10 buttonTank10(5); // Пин 5 для кнопки tank10
 LimitSwitchTank10 limitSwitchTank10(6); // Пин 6 для концевика tank10
 MosfetTank10 mosfetTank10(7); // Пин 7 для MOSFET tank10
@@ -26,8 +26,8 @@ const unsigned long LIMIT_IGNORE_TIME = 5000; // Время игнорирова
 const unsigned long SCHEDULE_CHECK_INTERVAL = 45000; // Интервал проверки расписания в мс
 
 // Таймеры
-unsigned long _limitIgnoreStartTime = 0;
-bool _isLimitIgnored = false;
+unsigned long _limitIgnoreStartTimeTank20 = 0;
+bool _isLimitIgnoredTank20 = false;
 unsigned long _limitIgnoreStartTimeTank10 = 0;
 bool _isLimitIgnoredTank10 = false;
 unsigned long _lastScheduleCheck = 0;
@@ -37,19 +37,19 @@ void setup() {
     Serial.println(F("[MAIN] Init"));
     
     clock.init();
-    button.init();
-    limitSwitch.init();
-    mosfet.init();
+    buttonTank20.init();
+    limitSwitchTank20.init();
+    mosfetTank20.init();
     buttonTank10.init();
     limitSwitchTank10.init();
     mosfetTank10.init();
-    scheduler.init(&clock, &mosfet, &mosfetTank10);
+    scheduler.init(&clock, &mosfetTank20, &mosfetTank10);
     
     // Установка времени
     // DateTime currentTime(2025, 1, 1, 12, 0, 0);
     // clock.setTime(currentTime);
     
-    // Добавляем расписание для основного бака
+    // Добавляем расписание для tank20
     // Понедельник
     scheduler.addSchedule(9, 0, 1, 1);
     scheduler.addSchedule(19, 0, 1, 1);
@@ -113,9 +113,9 @@ void loop() {
     unsigned long currentTime = millis();
     
     // Проверка таймера игнорирования концевика
-    if (_isLimitIgnored && (currentTime - _limitIgnoreStartTime) > LIMIT_IGNORE_TIME) {
-        _isLimitIgnored = false;
-        Serial.println(F("[MAIN] End ignore"));
+    if (_isLimitIgnoredTank20 && (currentTime - _limitIgnoreStartTimeTank20) > LIMIT_IGNORE_TIME) {
+        _isLimitIgnoredTank20 = false;
+        Serial.println(F("[MAIN] End ignore tank20"));
     }
 
     if (_isLimitIgnoredTank10 && (currentTime - _limitIgnoreStartTimeTank10) > LIMIT_IGNORE_TIME) {
@@ -124,25 +124,25 @@ void loop() {
     }
 
     if (TEST_MODE) {
-        // Тест кнопки и MOSFET для основного бака
-        if (button.isPressed() && !mosfet.isOn()) {
-            Serial.println(F("[MAIN] Button press"));
-            mosfet.turnOn();
+        // Тест кнопки и MOSFET для tank20
+        if (buttonTank20.isPressed() && !mosfetTank20.isOn()) {
+            Serial.println(F("[MAIN] Button press tank20"));
+            mosfetTank20.turnOn();
             delay(MOSFET_DELAY);
-            limitSwitch.reset();
-            _limitIgnoreStartTime = currentTime;
-            _isLimitIgnored = true;
-            Serial.println(F("[MAIN] Start ignore"));
+            limitSwitchTank20.reset();
+            _limitIgnoreStartTimeTank20 = currentTime;
+            _isLimitIgnoredTank20 = true;
+            Serial.println(F("[MAIN] Start ignore tank20"));
         }
 
-        // Тест концевика для основного бака
-        if (!_isLimitIgnored && mosfet.isOn() && limitSwitch.isTriggered()) {
-            Serial.println(F("[MAIN] Limit switch triggered"));
-            Serial.print(F("[MAIN] MOSFET state before: "));
-            Serial.println(mosfet.isOn());
-            mosfet.turnOff();
-            Serial.print(F("[MAIN] MOSFET state after: "));
-            Serial.println(mosfet.isOn());
+        // Тест концевика для tank20
+        if (!_isLimitIgnoredTank20 && mosfetTank20.isOn() && limitSwitchTank20.isTriggered()) {
+            Serial.println(F("[MAIN] Limit switch triggered tank20"));
+            Serial.print(F("[MAIN] MOSFET tank20 state before: "));
+            Serial.println(mosfetTank20.isOn());
+            mosfetTank20.turnOff();
+            Serial.print(F("[MAIN] MOSFET tank20 state after: "));
+            Serial.println(mosfetTank20.isOn());
         }
 
         // Тест кнопки и MOSFET для tank10
@@ -170,15 +170,15 @@ void loop() {
         if ((currentTime - _lastScheduleCheck) >= SCHEDULE_CHECK_INTERVAL) {
             _lastScheduleCheck = currentTime;
             
-            // Проверка основного бака
+            // Проверка tank20
             if (scheduler.shouldActivate(1)) {
-                Serial.println(F("[MAIN] Schedule main tank"));
-                mosfet.turnOn();
+                Serial.println(F("[MAIN] Schedule tank20"));
+                mosfetTank20.turnOn();
                 delay(MOSFET_DELAY);
-                limitSwitch.reset();
-                _limitIgnoreStartTime = currentTime;
-                _isLimitIgnored = true;
-                Serial.println(F("[MAIN] Start ignore"));
+                limitSwitchTank20.reset();
+                _limitIgnoreStartTimeTank20 = currentTime;
+                _isLimitIgnoredTank20 = true;
+                Serial.println(F("[MAIN] Start ignore tank20"));
             }
             
             // Проверка tank10
@@ -194,24 +194,24 @@ void loop() {
         }
     } else {
         // Нормальный режим работы
-        // Обработка основного бака
-        if (button.isPressed() && !mosfet.isOn()) {
-            Serial.println(F("[MAIN] Button press"));
-            mosfet.turnOn();
+        // Обработка tank20
+        if (buttonTank20.isPressed() && !mosfetTank20.isOn()) {
+            Serial.println(F("[MAIN] Button press tank20"));
+            mosfetTank20.turnOn();
             delay(MOSFET_DELAY);
-            limitSwitch.reset();
-            _limitIgnoreStartTime = currentTime;
-            _isLimitIgnored = true;
-            Serial.println(F("[MAIN] Start ignore"));
+            limitSwitchTank20.reset();
+            _limitIgnoreStartTimeTank20 = currentTime;
+            _isLimitIgnoredTank20 = true;
+            Serial.println(F("[MAIN] Start ignore tank20"));
         }
 
-        if (!_isLimitIgnored && mosfet.isOn() && limitSwitch.isTriggered()) {
-            Serial.println(F("[MAIN] Limit switch triggered"));
-            Serial.print(F("[MAIN] MOSFET state before: "));
-            Serial.println(mosfet.isOn());
-            mosfet.turnOff();
-            Serial.print(F("[MAIN] MOSFET state after: "));
-            Serial.println(mosfet.isOn());
+        if (!_isLimitIgnoredTank20 && mosfetTank20.isOn() && limitSwitchTank20.isTriggered()) {
+            Serial.println(F("[MAIN] Limit switch triggered tank20"));
+            Serial.print(F("[MAIN] MOSFET tank20 state before: "));
+            Serial.println(mosfetTank20.isOn());
+            mosfetTank20.turnOff();
+            Serial.print(F("[MAIN] MOSFET tank20 state after: "));
+            Serial.println(mosfetTank20.isOn());
         }
 
         // Обработка tank10
@@ -238,15 +238,15 @@ void loop() {
         if ((currentTime - _lastScheduleCheck) >= SCHEDULE_CHECK_INTERVAL) {
             _lastScheduleCheck = currentTime;
             
-            // Проверка основного бака
+            // Проверка tank20
             if (scheduler.shouldActivate(1)) {
-                Serial.println(F("[MAIN] Schedule main tank"));
-                mosfet.turnOn();
+                Serial.println(F("[MAIN] Schedule tank20"));
+                mosfetTank20.turnOn();
                 delay(MOSFET_DELAY);
-                limitSwitch.reset();
-                _limitIgnoreStartTime = currentTime;
-                _isLimitIgnored = true;
-                Serial.println(F("[MAIN] Start ignore"));
+                limitSwitchTank20.reset();
+                _limitIgnoreStartTimeTank20 = currentTime;
+                _isLimitIgnoredTank20 = true;
+                Serial.println(F("[MAIN] Start ignore tank20"));
             }
             
             // Проверка tank10

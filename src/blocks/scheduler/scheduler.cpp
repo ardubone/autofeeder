@@ -1,6 +1,6 @@
 #include "blocks/scheduler/scheduler.hpp"
 
-Scheduler::Scheduler() : _clock(nullptr), _mosfet(nullptr), _mosfetTank10(nullptr), _scheduleCount(0) {}
+Scheduler::Scheduler() : _clock(nullptr), _mosfetTank20(nullptr), _mosfetTank10(nullptr), _scheduleCount(0) {}
 
 const char* getDayName(uint8_t day) {
     switch(day) {
@@ -15,9 +15,9 @@ const char* getDayName(uint8_t day) {
     }
 }
 
-void Scheduler::init(Clock* clock, Mosfet* mosfet, MosfetTank10* mosfetTank10) {
+void Scheduler::init(Clock* clock, MosfetTank20* mosfetTank20, MosfetTank10* mosfetTank10) {
     _clock = clock;
-    _mosfet = mosfet;
+    _mosfetTank20 = mosfetTank20;
     _mosfetTank10 = mosfetTank10;
     
     Serial.println(F("[SCHEDULER] Инициализация планировщика"));
@@ -43,7 +43,7 @@ void Scheduler::addSchedule(uint8_t hour, uint8_t minute, uint8_t dayOfWeek, uin
 }
 
 bool Scheduler::shouldActivate(uint8_t tankId) {
-    if (!_clock || !_mosfet || !_mosfetTank10) return false;
+    if (!_clock || !_mosfetTank20 || !_mosfetTank10) return false;
 
     DateTime now = _clock->getTime();
     uint8_t currentDay = now.dayOfTheWeek();
@@ -69,7 +69,7 @@ bool Scheduler::shouldActivate(uint8_t tankId) {
             _schedules[i].hour == currentHour &&
             _schedules[i].minute == currentMinute) {
             
-            if (tankId == 1 && !_mosfet->isOn()) {
+            if (tankId == 1 && !_mosfetTank20->isOn()) {
                 return true;
             } else if (tankId == 2 && !_mosfetTank10->isOn()) {
                 return true;

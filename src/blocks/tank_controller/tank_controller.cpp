@@ -29,11 +29,6 @@ void TankController::update(unsigned long currentTime) {
         Serial.println(_tankId);
     }
 
-    // Проверка нажатия кнопки
-    // if (_button->isPressed() && !_mosfet->isOn()) {
-    //     activateByButton();
-    // }
-
     // Проверка срабатывания концевика
     if (!_isLimitIgnored && _mosfet->isOn() && _limitSwitch->isTriggered()) {
         Serial.print(F("[TANK_CONTROLLER] Сработал концевик для бака "));
@@ -90,19 +85,40 @@ void TankController::activateBySchedule() {
     Serial.print(F("[TANK_CONTROLLER] Активация по расписанию для бака "));
     Serial.println(_tankId);
     
+    // Максимальное количество попыток включения
+    const uint8_t MAX_ACTIVATION_ATTEMPTS = 3;
+    uint8_t attempts = 0;
+    bool success = false;
+    
     // Проверяем, что MOSFET выключен перед его включением
     if (!_mosfet->isOn()) {
-        bool turnOnSuccess = _mosfet->turnOn();
-        if (turnOnSuccess) {
-            delay(_mosfetDelay);
-            _limitSwitch->reset();
-            _limitIgnoreStartTime = millis();
-            _isLimitIgnored = true;
-            Serial.print(F("[TANK_CONTROLLER] Начало игнорирования для бака "));
-            Serial.println(_tankId);
-        } else {
+        while (!success && attempts < MAX_ACTIVATION_ATTEMPTS) {
+            attempts++;
+            
+            bool turnOnSuccess = _mosfet->turnOn();
+            if (turnOnSuccess) {
+                delay(_mosfetDelay);
+                _limitSwitch->reset();
+                _limitIgnoreStartTime = millis();
+                _isLimitIgnored = true;
+                Serial.print(F("[TANK_CONTROLLER] Начало игнорирования для бака "));
+                Serial.println(_tankId);
+                success = true;
+            } else {
+                Serial.print(F("[TANK_CONTROLLER] Попытка "));
+                Serial.print(attempts);
+                Serial.print(F(" включения MOSFET для бака "));
+                Serial.println(_tankId);
+                
+                // Увеличиваем задержку при последующих попытках
+                delay(50 * attempts);
+            }
+        }
+        
+        if (!success) {
             Serial.print(F("[TANK_CONTROLLER] Не удалось включить MOSFET для бака "));
-            Serial.println(_tankId);
+            Serial.print(_tankId);
+            Serial.println(F(" после нескольких попыток"));
         }
     } else {
         Serial.print(F("[TANK_CONTROLLER] MOSFET уже включен для бака "));

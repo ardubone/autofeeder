@@ -14,6 +14,8 @@ const unsigned long LIMIT_IGNORE_TIME = 5000; // Время игнорирова
 const unsigned long SCHEDULE_CHECK_INTERVAL = 45000; // Интервал проверки расписания в мс
 const unsigned long INIT_STABILIZATION_DELAY = 2000; // Задержка для стабилизации питания при запуске
 const unsigned long POWER_FLUCTUATION_THRESHOLD = 200; // Порог времени для игнорирования повторных срабатываний
+const unsigned long EMERGENCY_SCHEDULE_CHECK = 5000; // Интервал проверки расписания в аварийном режиме
+const unsigned long MAX_UNSTABLE_TIME = 10000; // Максимальное время в нестабильном состоянии
 
 // Инициализация компонентов
 Clock clock;
@@ -36,10 +38,14 @@ unsigned long _lastScheduleCheck = 0;
 unsigned long _lastActivation20 = 0; // Время последней активации для бака 20
 unsigned long _lastActivation10 = 0; // Время последней активации для бака 10
 bool _systemStabilized = false; // Флаг стабилизации системы
+unsigned long _systemStartTime = 0; // Время запуска системы
+bool _emergencyMode = false; // Флаг аварийного режима
 
 void setup() {
     Serial.begin(9600);
     Serial.println(F("[MAIN] Init"));
+    
+    _systemStartTime = millis();
     
     // Задержка для стабилизации питания
     delay(INIT_STABILIZATION_DELAY);
@@ -97,9 +103,45 @@ void setup() {
 void loop() {
     unsigned long currentTime = millis();
     
-    // Пропускаем обработку, если система ещё не стабилизирована
+    // Проверяем аварийный режим
     if (!_systemStabilized) {
+        // Если система не стабилизировалась в течение MAX_UNSTABLE_TIME, переходим в аварийный режим
+        if ((currentTime - _systemStartTime) > MAX_UNSTABLE_TIME && !_emergencyMode) {
+            _emergencyMode = true;
+            Serial.println(F("[MAIN] ВНИМАНИЕ: Переход в аварийный режим"));
+        }
+        
+        // В аварийном режиме проверяем только расписание
+        if (_emergencyMode && (currentTime - _lastScheduleCheck) >= EMERGENCY_SCHEDULE_CHECK) {
+            _lastScheduleCheck = currentTime;
+            
+            Serial.println(F("[MAIN] Проверка расписания в аварийном режиме"));
+            
+            // Проверка tank20 в аварийном режиме
+            if (scheduler.shouldActivate(1)) {
+                if ((currentTime - _lastActivation20) > POWER_FLUCTUATION_THRESHOLD * 5) { // Увеличенный порог в аварийном режиме
+                    tankController20.activateBySchedule();
+                    _lastActivation20 = currentTime;
+                }
+            }
+            
+            // Проверка tank10 в аварийном режиме
+            if (scheduler.shouldActivate(2)) {
+                if ((currentTime - _lastActivation10) > POWER_FLUCTUATION_THRESHOLD * 5) { // Увеличенный порог в аварийном режиме
+                    tankController10.activateBySchedule();
+                    _lastActivation10 = currentTime;
+                }
+            }
+        }
+        
+        delay(100);
         return;
+    }
+    
+    // Сброс аварийного режима если система стабилизировалась
+    if (_emergencyMode) {
+        _emergencyMode = false;
+        Serial.println(F("[MAIN] Выход из аварийного режима"));
     }
     
     // Обновление контроллеров баков

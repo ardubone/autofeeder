@@ -10,6 +10,8 @@ void Button::init() {
 }
 
 bool Button::isPressed() {
+    // Ручное управление отключено
+    /*
     bool currentState = digitalRead(_pin) == LOW;
     
     if (currentState != _lastState) {
@@ -24,6 +26,7 @@ bool Button::isPressed() {
     }
     
     _lastState = currentState;
+    */
     return false;
 }
 

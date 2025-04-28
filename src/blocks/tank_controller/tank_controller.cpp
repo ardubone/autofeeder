@@ -25,9 +25,9 @@ void TankController::update(unsigned long currentTime) {
     }
 
     // Проверка нажатия кнопки
-    if (_button->isPressed() && !_mosfet->isOn()) {
-        activateByButton();
-    }
+    // if (_button->isPressed() && !_mosfet->isOn()) {
+    //     activateByButton();
+    // }
 
     // Проверка срабатывания концевика
     if (!_isLimitIgnored && _mosfet->isOn() && _limitSwitch->isTriggered()) {
@@ -42,6 +42,7 @@ void TankController::update(unsigned long currentTime) {
 }
 
 void TankController::activateByButton() {
+    // Метод сохранен для совместимости, но ручное управление отключено
     Serial.print(F("[TANK_CONTROLLER] Нажата кнопка для бака "));
     Serial.println(_tankId);
     _mosfet->turnOn();

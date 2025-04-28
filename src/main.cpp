@@ -8,7 +8,6 @@
 #include "config/schedule_config.hpp"
 
 // Константы
-const bool TEST_MODE = false;
 const unsigned long MOSFET_DELAY = 1000; // Задержка после включения MOSFET в мс
 const unsigned long MOSFET_OFF_DELAY = 200; // Задержка после выключения MOSFET в мс
 const unsigned long LIMIT_IGNORE_TIME = 5000; // Время игнорирования концевика в мс
@@ -39,10 +38,10 @@ void setup() {
     
     // Инициализация компонентов
     clock.init();
-    buttonTank20.init();
+    // buttonTank20.init(); // Ручное управление отключено
     limitSwitchTank20.init();
     mosfetTank20.init();
-    buttonTank10.init();
+    // buttonTank10.init(); // Ручное управление отключено
     limitSwitchTank10.init();
     mosfetTank10.init();
     

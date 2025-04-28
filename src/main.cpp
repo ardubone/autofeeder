@@ -12,6 +12,8 @@ const unsigned long MOSFET_DELAY = 1000; // Задержка после вклю
 const unsigned long MOSFET_OFF_DELAY = 200; // Задержка после выключения MOSFET в мс
 const unsigned long LIMIT_IGNORE_TIME = 5000; // Время игнорирования концевика в мс
 const unsigned long SCHEDULE_CHECK_INTERVAL = 45000; // Интервал проверки расписания в мс
+const unsigned long INIT_STABILIZATION_DELAY = 2000; // Задержка для стабилизации питания при запуске
+const unsigned long POWER_FLUCTUATION_THRESHOLD = 200; // Порог времени для игнорирования повторных срабатываний
 
 // Инициализация компонентов
 Clock clock;
@@ -29,12 +31,18 @@ TankController tankController10(2, &buttonTank10, &limitSwitchTank10, &mosfetTan
 // Планировщик
 Scheduler scheduler;
 
-// Таймеры
+// Таймеры и состояния
 unsigned long _lastScheduleCheck = 0;
+unsigned long _lastActivation20 = 0; // Время последней активации для бака 20
+unsigned long _lastActivation10 = 0; // Время последней активации для бака 10
+bool _systemStabilized = false; // Флаг стабилизации системы
 
 void setup() {
     Serial.begin(9600);
     Serial.println(F("[MAIN] Init"));
+    
+    // Задержка для стабилизации питания
+    delay(INIT_STABILIZATION_DELAY);
     
     // Инициализация компонентов
     clock.init();
@@ -44,6 +52,11 @@ void setup() {
     // buttonTank10.init(); // Ручное управление отключено
     limitSwitchTank10.init();
     mosfetTank10.init();
+    
+    // Гарантированно выключаем MOSFET при запуске
+    mosfetTank20.turnOff();
+    mosfetTank10.turnOff();
+    delay(MOSFET_OFF_DELAY);
     
     // Инициализация контроллеров баков
     tankController20.init();
@@ -75,10 +88,19 @@ void setup() {
     Serial.print(now.minute());
     Serial.print(F(":"));
     Serial.println(now.second());
+    
+    // Стабилизация завершена
+    _systemStabilized = true;
+    Serial.println(F("[MAIN] Система стабилизирована и готова к работе"));
 }
 
 void loop() {
     unsigned long currentTime = millis();
+    
+    // Пропускаем обработку, если система ещё не стабилизирована
+    if (!_systemStabilized) {
+        return;
+    }
     
     // Обновление контроллеров баков
     tankController20.update(currentTime);
@@ -90,12 +112,24 @@ void loop() {
         
         // Проверка tank20
         if (scheduler.shouldActivate(1)) {
-            tankController20.activateBySchedule();
+            // Защита от частых срабатываний
+            if ((currentTime - _lastActivation20) > POWER_FLUCTUATION_THRESHOLD) {
+                tankController20.activateBySchedule();
+                _lastActivation20 = currentTime;
+            } else {
+                Serial.println(F("[MAIN] Игнорирование слишком частой активации для бака 1"));
+            }
         }
         
         // Проверка tank10
         if (scheduler.shouldActivate(2)) {
-            tankController10.activateBySchedule();
+            // Защита от частых срабатываний
+            if ((currentTime - _lastActivation10) > POWER_FLUCTUATION_THRESHOLD) {
+                tankController10.activateBySchedule();
+                _lastActivation10 = currentTime;
+            } else {
+                Serial.println(F("[MAIN] Игнорирование слишком частой активации для бака 2"));
+            }
         }
     }
     
